@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+server/node_modules
+shared/node_modules
+client/dist
+.git
+.env
+.env.*
+!.env.example
+coverage
+*.log

@@ -1,0 +1,66 @@
+# Free, local Judge0 CE — no account, no API key, no card.
+#
+#   npm run judge0:up          (or: docker compose -f docker-compose.judge0.yml up -d)
+#
+# Then put this in your .env:
+#   JUDGE0_URL=http://localhost:2358
+#
+# Give it ~30s to boot the first time, then press the refresh icon next to the
+# language dropdown in the editor. You should see a "Judge0" badge.
+#
+# Note: Judge0 needs `privileged: true` because it uses the Isolate sandbox
+# (namespaces + cgroups). On Windows use Docker Desktop with the WSL2 backend.
+
+x-judge0-env: &judge0-env
+  JUDGE0_TELEMETRY_ENABLE: "false"
+  REDIS_HOST: judge0-redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: judge0redis
+  POSTGRES_HOST: judge0-db
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: judge0
+  POSTGRES_USER: judge0
+  POSTGRES_PASSWORD: judge0postgres
+  # Lets us POST /submissions?wait=true and get the result in one call.
+  ENABLE_WAIT_RESULT: "true"
+
+services:
+  judge0-server:
+    image: judge0/judge0:latest
+    environment:
+      <<: *judge0-env
+    ports:
+      - "2358:2358"
+    privileged: true
+    restart: unless-stopped
+
+  judge0-worker:
+    image: judge0/judge0:latest
+    command: ["./scripts/workers"]
+    environment:
+      <<: *judge0-env
+    privileged: true
+    restart: unless-stopped
+
+  judge0-db:
+    image: postgres:16.2
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: judge0postgres
+    volumes:
+      - judge0-data:/var/lib/postgresql/data/
+    restart: unless-stopped
+
+  judge0-redis:
+    image: redis:7.2.4
+    command:
+      - "bash"
+      - "-c"
+      - 'docker-entrypoint.sh --appendonly no --requirepass "$$REDIS_PASSWORD"'
+    environment:
+      REDIS_PASSWORD: judge0redis
+    restart: unless-stopped
+
+volumes:
+  judge0-data:
